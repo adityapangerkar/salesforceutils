@@ -1,0 +1,10 @@
+SELECT Count(Id),Profile.Name FROM User WHERE Profile.Name = 'ProfileName' AND IsActive = TRUE GROUP BY Profile.Name
+SELECT FolderName,DeveloperName FROM Report WHERE Id IN (SELECT CustomReportId FROM DashboardComponent WHERE Dashboard.DeveloperName = 'DashboardName')
+SELECT Id, Name, DeveloperName FROM RecordType WHERE SobjectType = 'Sobject' and isActive = true
+SELECT Id, Name, DeveloperName,FolderName FROM EmailTemplate WHERE DeveloperName = 'EmailTemplate'
+SELECT Id,EntityDefinition.Label,DeveloperName FROM CustomField WHERE DeveloperName = 'FieldApiName'
+SELECT Id,Name,Profile.Name FROM User WHERE Profile.Name = 'ProfileName' AND IsActive = TRUE LIMIT 1
+SELECT Id,Name,UserLicense.Name FROM Profile WHERE Name LIKE '%ProfileName%'
+SELECT Id,Name,Value FROM CustomLabel WHERE Name = 'Name' OR Value = 'Value'
+SELECT Id,Parent.Profile.Name,ParentId,PermissionsCreate, PermissionsRead,PermissionsEdit,PermissionsDelete,PermissionsViewAllRecords,PermissionsModifyAllRecords FROM ObjectPermissions WHERE Parent.ProfileId !=null AND SobjectType = 'Sobject' AND Parent.ProfileId NOT IN ('')
+SELECT ProfileId FROM PermissionSet WHERE IsCustom = true AND ProfileId != null
