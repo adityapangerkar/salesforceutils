@@ -1,0 +1,18 @@
+IF( 
+CONTAINS({!$Flow.FaultMessage},'REQUIRED_FIELD_MISSING:'),MID(
+
+{!$Flow.FaultMessage},
+
+FIND("REQUIRED_FIELD_MISSING:",{!$Flow.FaultMessage}) + 23,
+
+FIND("ExceptionCode",{!$Flow.FaultMessage}) - ( FIND("REQUIRED_FIELD_MISSING:",{!$Flow.FaultMessage}) + 39 )
+
+),IF(CONTAINS({!$Flow.FaultMessage},'EXCEPTION:'),MID(
+
+{!$Flow.FaultMessage},
+
+FIND("EXCEPTION:",{!$Flow.FaultMessage}) + 10,
+
+FIND("ExceptionCode",{!$Flow.FaultMessage}) - ( FIND("EXCEPTION:",{!$Flow.FaultMessage}) + 28 )
+
+),{!$Flow.FaultMessage}))
