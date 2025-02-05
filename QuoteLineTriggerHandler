@@ -1,0 +1,143 @@
+public class QuoteLineTriggerHandler{
+    public static void afterInsertHandler(List<SBQQ__QuoteLine__c> newList, Map<Id, SBQQ__QuoteLine__c> oldMap){
+        Set<Id> renewalOrAmendmentQuoteIds = new Set<Id>();
+        renewalOrAmendmentQuoteIds.addAll(getRenewalOrAmendmentQuoteIds(newList));
+        if (!renewalOrAmendmentQuoteIds.isEmpty()) {
+            createGroupsForRenewalAndAmendmentQuotes(renewalOrAmendmentQuoteIds);
+        }
+    }
+    
+    private static Set<Id> getRenewalOrAmendmentQuoteIds(List<SBQQ__QuoteLine__c> newList) {
+        Set<Id> quoteIds = new Set<Id>();
+        for (SBQQ__QuoteLine__c ql : newList) {
+            quoteIds.add(ql.SBQQ__Quote__c);
+        }
+        Map<Id,SBQQ__Quote__c> renewalOrAmendmentQuotes = new Map<Id,SBQQ__Quote__c>( [
+            SELECT Id 
+            FROM SBQQ__Quote__c 
+            WHERE Id IN :quoteIds AND SBQQ__Type__c IN ('Renewal', 'Amendment')]);
+        
+        return renewalOrAmendmentQuotes.keySet();
+    }
+    
+    @future
+    public static void createGroupsForRenewalAndAmendmentQuotes(Set<Id> renewalOrAmendmentQuoteIds){
+        List<SBQQ__QuoteLineGroup__c> newQuoteLineGroups = new List<SBQQ__QuoteLineGroup__c>();
+        List<SBQQ__QuoteLineGroup__c> quoteLineGroupsToInsertForOldGroups = new List<SBQQ__QuoteLineGroup__c>();
+        List<SBQQ__QuoteLine__c> ungroupedQuoteLines = new List<SBQQ__QuoteLine__c>();
+        List<SBQQ__QuoteLine__c> groupedQuoteLines = new List<SBQQ__QuoteLine__c>();
+        List<SBQQ__QuoteLine__c> quoteLinesToUpdate = new List<SBQQ__QuoteLine__c>();
+        List<SBQQ__QuoteLine__c> quoteLinesToUpdateForFreshGroups = new List<SBQQ__QuoteLine__c>();
+        Set<Id> qlgIds = new Set<Id>();
+        Set<Id> newQuotesWithGroups = new Set<Id>();
+        Map<Id, SBQQ__Quote__c> quotesToUpdate = new Map<Id, SBQQ__Quote__c>();
+        Map<String, SBQQ__QuoteLineGroup__c> qIdAndGroupTypeVsqlGroupsToInsert = new Map<String, SBQQ__QuoteLineGroup__c>();
+        Map<Id, String> quoteLineIdVsGroupType = new Map<Id, String>();
+        Map<Id, Id> subscriptionIdVsNewQuoteId = new Map<Id, Id>();
+        Map<Id, Id> subscriptionIdVsQLGId = new Map<Id, Id>();
+        Map<Id, Id> oldQuoteIdVsSubscriptionId = new Map<Id, Id>();
+        Map<Id, List<SBQQ__QuoteLineGroup__c>> oldQuoteIdVsQLGs = new Map<Id, List<SBQQ__QuoteLineGroup__c>>();
+        List<SBQQ__QuoteLine__c> newList = [SELECT Id, SBQQ__RenewedSubscription__c, SBQQ__RenewedSubscription__r.SBQQ__QuoteLine__r.SBQQ__Group__c, SBQQ__RenewedSubscription__r.SBQQ__QuoteLine__r.SBQQ__Quote__c, SBQQ__UpgradedSubscription__c, SBQQ__UpgradedSubscription__r.SBQQ__QuoteLine__r.SBQQ__Group__c, SBQQ__UpgradedSubscription__r.SBQQ__QuoteLine__r.SBQQ__Quote__c, SBQQ__Quote__c, SBQQ__Group__c, SBQQ__RenewedSubscription__r.SBQQ__QuoteLine__r.SBQQ__Quote__r.SBQQ__Type__c, SBQQ__UpgradedSubscription__r.SBQQ__QuoteLine__r.SBQQ__Quote__r.SBQQ__Type__c
+                                            FROM SBQQ__QuoteLine__c
+                                            WHERE SBQQ__Quote__c IN:renewalOrAmendmentQuoteIds AND SBQQ__Group__c = null];
+        try{
+            for (SBQQ__QuoteLine__c quoteLine : newList){
+                Id oldGroupId = String.isNotBlank(quoteLine.SBQQ__RenewedSubscription__r.SBQQ__QuoteLine__r.SBQQ__Group__c) ? quoteLine.SBQQ__RenewedSubscription__r.SBQQ__QuoteLine__r.SBQQ__Group__c : quoteLine.SBQQ__UpgradedSubscription__r.SBQQ__QuoteLine__r.SBQQ__Group__c;
+                if(String.isNotBlank(oldGroupId)){
+                    newQuotesWithGroups.add(quoteLine.SBQQ__Quote__c);
+                    
+                }
+            }
+            for (SBQQ__QuoteLine__c quoteLine : newList){
+                if(newQuotesWithGroups.contains(quoteLine.SBQQ__Quote__c)){
+                    Id subscriptionId = String.isNotBlank(quoteLine.SBQQ__RenewedSubscription__c) ? quoteLine.SBQQ__RenewedSubscription__c : quoteLine.SBQQ__UpgradedSubscription__c;
+                    Id oldQuoteId = String.isNotBlank(quoteLine.SBQQ__RenewedSubscription__r.SBQQ__QuoteLine__r.SBQQ__Quote__c) ? quoteLine.SBQQ__RenewedSubscription__r.SBQQ__QuoteLine__r.SBQQ__Quote__c : quoteLine.SBQQ__UpgradedSubscription__r.SBQQ__QuoteLine__r.SBQQ__Quote__c;
+                    Id oldGroupId = String.isNotBlank(quoteLine.SBQQ__RenewedSubscription__r.SBQQ__QuoteLine__r.SBQQ__Group__c) ? quoteLine.SBQQ__RenewedSubscription__r.SBQQ__QuoteLine__r.SBQQ__Group__c : quoteLine.SBQQ__UpgradedSubscription__r.SBQQ__QuoteLine__r.SBQQ__Group__c;
+                    if (String.isNotBlank(oldGroupId)){
+                        subscriptionIdVsNewQuoteId.put(subscriptionId, quoteLine.SBQQ__Quote__c);
+                        oldQuoteIdVsSubscriptionId.put(oldQuoteId, subscriptionId);
+                        subscriptionIdVsQLGId.put(subscriptionId, oldGroupId);
+                        qlgIds.add(oldGroupId);
+                        groupedQuoteLines.add(quoteLine);
+                    } else{
+                        String groupType = 'Ungrouped quote lines';
+                        String quoteType = String.isNotBlank(quoteLine.SBQQ__RenewedSubscription__r.SBQQ__QuoteLine__r.SBQQ__Quote__r.SBQQ__Type__c) ? quoteLine.SBQQ__RenewedSubscription__r.SBQQ__QuoteLine__r.SBQQ__Quote__r.SBQQ__Type__c : quoteLine.SBQQ__UpgradedSubscription__r.SBQQ__QuoteLine__r.SBQQ__Quote__r.SBQQ__Type__c;
+                        if (String.isNotBlank(quoteType)){
+                            groupType = (quoteType == 'Quote' ? 'Original' : quoteType) + ' quote lines';
+                        }
+                        quoteLineIdVsGroupType.put(quoteLine.Id, groupType);
+                        qIdAndGroupTypeVsqlGroupsToInsert.put(quoteLine.SBQQ__Quote__c + ' - ' + groupType, new SBQQ__QuoteLineGroup__c(
+                            SBQQ__Quote__c = quoteLine.SBQQ__Quote__c, 
+                            Name = groupType, 
+                            SBQQ__Number__c = -1
+                        ));
+                        ungroupedQuoteLines.add(quoteLine);
+                    }
+                    quotesToUpdate.put(quoteLine.SBQQ__Quote__c, new SBQQ__Quote__c(
+                        Id = quoteLine.SBQQ__Quote__c, 
+                        SBQQ__LineItemsGrouped__c = true
+                    ));
+                }
+            }
+            
+            if (!qIdAndGroupTypeVsqlGroupsToInsert.isEmpty()){
+                insert qIdAndGroupTypeVsqlGroupsToInsert.values();
+                newQuoteLineGroups.addAll(qIdAndGroupTypeVsqlGroupsToInsert.values());
+            }
+            for (SBQQ__QuoteLine__c quoteLine : ungroupedQuoteLines){
+                String key = quoteLine.SBQQ__Quote__c + ' - ' + quoteLineIdVsGroupType.get(quoteLine.Id);
+                if (qIdAndGroupTypeVsqlGroupsToInsert.containsKey(key)){
+                    SBQQ__QuoteLine__c ql = new SBQQ__QuoteLine__c();
+                    ql.Id = quoteLine.Id;
+                    ql.SBQQ__Group__c = qIdAndGroupTypeVsqlGroupsToInsert.get(key).Id;
+                    quoteLinesToUpdateForFreshGroups.add(ql);
+                }
+            }
+            if (!qlgIds.isEmpty()){
+                quoteLinesToUpdate.addAll(quoteLinesToUpdateForFreshGroups);
+                String quoteLineGroupQuery = SFUtil.getFields('SBQQ__QuoteLineGroup__c', 'Id', qlgIds);
+                List<SBQQ__QuoteLineGroup__c> quoteLineGroupList = Database.query(quoteLineGroupQuery);
+                for (SBQQ__QuoteLineGroup__c quoteLineGroup : quoteLineGroupList){
+                    if (!oldQuoteIdVsQLGs.containsKey(quoteLineGroup.SBQQ__Quote__c)){
+                        oldQuoteIdVsQLGs.put(quoteLineGroup.SBQQ__Quote__c, new List<SBQQ__QuoteLineGroup__c>());
+                    }
+                    oldQuoteIdVsQLGs.get(quoteLineGroup.SBQQ__Quote__c).add(quoteLineGroup);
+                }
+                for (Id oldQuoteId : oldQuoteIdVsQLGs.keySet()){
+                    quoteLineGroupsToInsertForOldGroups.addAll(SFUtil.cloneQuoteLineGroups(oldQuoteIdVsQLGs.get(oldQuoteId), subscriptionIdVsNewQuoteId.get(oldQuoteIdVsSubscriptionId.get(oldQuoteId)), false));
+                }
+                insert quoteLineGroupsToInsertForOldGroups;
+                newQuoteLineGroups.addAll(quoteLineGroupsToInsertForOldGroups);
+                Map<Id, Id> oldQLGIdVsNewQLGId = new Map<Id, Id>();
+                for (SBQQ__QuoteLineGroup__c quoteLineGroup : quoteLineGroupsToInsertForOldGroups){
+                    oldQLGIdVsNewQLGId.put(quoteLineGroup.ClonedFromQLG_Id__c, quoteLineGroup.Id);
+                }
+                for (SBQQ__QuoteLine__c quoteLine : groupedQuoteLines){
+                    Id subscriptionId = String.isNotBlank(quoteLine.SBQQ__RenewedSubscription__c) ? quoteLine.SBQQ__RenewedSubscription__c : quoteLine.SBQQ__UpgradedSubscription__c;
+                    if (String.isNotBlank(subscriptionId) && subscriptionIdVsQLGId.containsKey(subscriptionId) && oldQLGIdVsNewQLGId.containsKey(subscriptionIdVsQLGId.get(subscriptionId))){
+                        SBQQ__QuoteLine__c quoteLineToUpdate = new SBQQ__QuoteLine__c();
+                        quoteLineToUpdate.Id = quoteLine.Id;
+                        quoteLineToUpdate.SBQQ__Group__c = oldQLGIdVsNewQLGId.get(subscriptionIdVsQLGId.get(subscriptionId));
+                        quoteLinesToUpdate.add(quoteLineToUpdate);
+                    }
+                }
+                if (!quoteLinesToUpdate.isEmpty()){
+                    update quoteLinesToUpdate;
+                }
+            } else if (!quoteLinesToUpdateForFreshGroups.isEmpty()){
+                update quoteLinesToUpdateForFreshGroups;
+            }
+            if (!quotesToUpdate.isEmpty()){
+                Map<Id, SBQQ__QuoteLineGroup__c> qlgsToDelete = new Map<Id, SBQQ__QuoteLineGroup__c>([SELECT Id FROM SBQQ__QuoteLineGroup__c WHERE SBQQ__Quote__c IN: renewalOrAmendmentQuoteIds AND Id NOT IN (SELECT SBQQ__Group__c FROM SBQQ__QuoteLine__c WHERE SBQQ__Quote__c IN: renewalOrAmendmentQuoteIds AND SBQQ__Group__c != null)]);
+                if (!qlgsToDelete.isEmpty()){
+                    delete qlgsToDelete.values();
+                }
+                SBQQ.TriggerControl.disable();
+                update quotesToUpdate.values();
+                SBQQ.TriggerControl.enable();
+            }
+        } catch (Exception e){
+            System.debug('In apex class: QuoteLineTriggerHandler :: createGroupsForRenewalAndAmendmentQuotes At line ' + e.getLineNumber() + ' Cause: ' + e.getCause() + ' ErrorMessage: ' + e.getMessage());
+        }
+    }
+}
