@@ -1,0 +1,13 @@
+    connectedCallback() {
+        document.addEventListener("itemsent", (message) => this.checkOutput(message));
+    }
+----------------------------------------------------------
+                <c-child-l-w-c
+                    onclose={handleModalClose} 
+                    onsave={handleSave}
+                    itemsent={checkOutput}>
+                </c-child-l-w-c>
+----------------------------------------------------------
+    checkOutput(event) {
+//logic
+    }
