@@ -1,0 +1,8 @@
+connectedCallback() {
+    this.handleEvent = (message) => this.checkOutput(message); // Store reference
+    document.addEventListener("orderproductsent", this.handleEvent);
+}
+
+disconnectedCallback() {
+    document.removeEventListener("orderproductsent", this.handleEvent);
+}
