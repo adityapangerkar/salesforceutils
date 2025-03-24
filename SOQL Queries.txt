@@ -8,3 +8,4 @@ SELECT Id,Name,UserLicense.Name FROM Profile WHERE Name LIKE '%ProfileName%'
 SELECT Id,Name,Value FROM CustomLabel WHERE Name = 'Name' OR Value = 'Value'
 SELECT Id,Parent.Profile.Name,ParentId,PermissionsCreate, PermissionsRead,PermissionsEdit,PermissionsDelete,PermissionsViewAllRecords,PermissionsModifyAllRecords FROM ObjectPermissions WHERE Parent.ProfileId !=null AND SobjectType = 'Sobject' AND Parent.ProfileId NOT IN ('')
 SELECT ProfileId FROM PermissionSet WHERE IsCustom = true AND ProfileId != null
+SELECT RecordId, MaxAccessLevel, HasAllAccess, HasDeleteAccess, HasEditAccess, HasReadAccess, HasTransferAccess FROM UserRecordAccess where UserId = '' and RecordId IN ('','')
