@@ -10,4 +10,5 @@ SELECT Id,Parent.Profile.Name,ParentId,PermissionsCreate, PermissionsRead,Permis
 SELECT ProfileId FROM PermissionSet WHERE IsCustom = true AND ProfileId != null//
 SELECT RecordId, MaxAccessLevel, HasAllAccess, HasDeleteAccess, HasEditAccess, HasReadAccess, HasTransferAccess FROM UserRecordAccess where UserId = '' and RecordId IN ('','')//
 SELECT Id,CreatedDate FROM Account WHERE CreatedDate = TODAY ORDER BY CreatedDate DESC//
-SELECT Id FROM ApexLog
+SELECT Id FROM ApexLog//
+SELECT Id FROM
