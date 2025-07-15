@@ -1,3 +1,4 @@
+SELECT Id FROM //
 SELECT Count(Id),Profile.Name FROM User WHERE Profile.Name = 'ProfileName' AND IsActive = TRUE GROUP BY Profile.Name//
 SELECT FolderName,DeveloperName FROM Report WHERE Id IN (SELECT CustomReportId FROM DashboardComponent WHERE Dashboard.DeveloperName = 'DashboardName')//
 SELECT Id, Name, DeveloperName FROM RecordType WHERE SobjectType = 'Sobject' and isActive = true//
@@ -10,5 +11,4 @@ SELECT Id,Parent.Profile.Name,ParentId,PermissionsCreate, PermissionsRead,Permis
 SELECT ProfileId FROM PermissionSet WHERE IsCustom = true AND ProfileId != null//
 SELECT RecordId, MaxAccessLevel, HasAllAccess, HasDeleteAccess, HasEditAccess, HasReadAccess, HasTransferAccess FROM UserRecordAccess where UserId = '' and RecordId IN ('','')//
 SELECT Id,CreatedDate FROM Account WHERE CreatedDate = TODAY ORDER BY CreatedDate DESC//
-SELECT Id FROM ApexLog//
-SELECT Id FROM 
+SELECT ContentDocumentId,LinkedEntityId,ContentDocument.LatestPublishedVersion.Title,ContentDocument.FileType FROM ContentDocumentLink WHERE ContentDocumentId IN (SELECT Id FROM ContentDocument WHERE CreatedDate = TODAY)
